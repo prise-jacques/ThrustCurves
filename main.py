@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, Toplevel
+import os
 
 
 def read_eng_file(file_path):
@@ -29,31 +31,47 @@ def read_eng_file(file_path):
     return times, thrusts
 
 
-def plot_thrust_curve(times, thrusts, file_name, combined=False):
+def create_graph_window(fig, title):
     """
-    Plot the thrust curves as a function of time for the chosen display mode
+    Create a Tkinter window with the graph and a return to menu button
     """
-    if not combined: 
-        # New graph window if not combined
-        plt.figure(figsize=(8, 5))
+    graph_window = Toplevel()
+    graph_window.title(title)
+
+    canvas = FigureCanvasTkAgg(fig, master=graph_window)
+    canvas.draw()
+    canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+
+    tk.Button(
+        graph_window,
+        text="Return to Menu",
+        font=("Arial", 10),
+        command=lambda: [graph_window.destroy(), launch_menu()],
+    ).pack(pady=10)
+
+# def plot_thrust_curve(times, thrusts, file_name):
+#     """
+#     Plot the thrust curves as a function of time for the chosen display mode
+#     """
+#     if not combined: 
+#         # New graph window if not combined
+#         plt.figure(figsize=(8, 5))
     
-    plt.plot(times, thrusts, label=f"Poussée ({file_name})")
-    # plt.title(f"Courbe de poussée pour {file_name}")
-    plt.xlabel("Temps (s)")
-    plt.ylabel("Poussée (N)")
-    plt.grid(True)
+#     plt.plot(times, thrusts, label=f"Poussée ({file_name})")
+#     # plt.title(f"Courbe de poussée pour {file_name}")
+#     plt.xlabel("Temps (s)")
+#     plt.ylabel("Poussée (N)")
+#     plt.grid(True)
     
-    if combined: 
-        plt.legend()
+#     if combined: 
+#         plt.legend()
 
 
 def main(combined_plot):
     """
     Main program to read multiple files and plot the graphs.
-    Programme principal pour lire plusieurs fichiers et tracer les courbes.
     """
     # Creation of the engines' list
-    # Création de la liste des moteurs
     file_paths = [
             # Be careful to change the path of the files on your machine
         "Thrust_Curves_List\PRO_94_4G_M1800.eng",
@@ -71,37 +89,46 @@ def main(combined_plot):
         # "Thrust_Curves_List\PRO_98_6GXL_Red_Lightning.eng"
             # Add other files above this line and a comma and the end of the previous line
     ]
-    
-    # Binary test : True for combined graphs, False for serapate graphs
-    # combined_plot = True     
-        # Change the value to change display modes
 
     if combined_plot:
-        plt.figure(figsize=(10, 6))
-        plt.title("Combined Thrust Curves")
+        # Combined graph figure
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.set_title("Combined Thrust Curves")
+        ax.set_xlabel("Time (s)")
+        ax.set_ylabel("Thrust (N)")
+        ax.grid(True)
 
     for file_path in file_paths:
         # Lire et parser les données
         times, thrusts = read_eng_file(file_path)
 
-        # Vérifier que des données ont été extraites
+        # Skip files with no valid data
         if not times or not thrusts:
             print(f"Error: the file '{file_path}' is empty or in the wrong format.")
             continue
 
         # Get the file name for the graph title
-        file_name = file_path.split("/")[-1]
+        file_name = os.path.basename(file_path)
 
-        # Configure the graph in a new window
-        plot_thrust_curve(times, thrusts, file_name, combined=combined_plot)
+        if combined_plot:
+            # Plot on the combined figure
+            ax.plot(times, thrusts, label=file_name)
+        else:
+            # Create a separate figure for each file
+            fig, ax = plt.subplots(figsize=(8, 5))
+            ax.set_title("Thrust Curves: {file_name}")
+            ax.set_xlabel("Time (s)")
+            ax.set_ylabel("Thrust (N)")
+            ax.grid(True)
+            ax.legend()
+
+            # Create a graph window for separate graphs
+            create_graph_window(fig, f"Graph: {file_name}")
 
     if combined_plot:
         # Add the legend on the combined graph
-        plt.legend()
-        plt.grid(True)
-
-    # Show each graph in a different window
-    plt.show()
+        ax.legend()
+        create_graph_window(fig, "Combined Graphs")
 
 
 def launch_menu():
@@ -111,6 +138,7 @@ def launch_menu():
     def set_combined():
         root.destroy()
         main(combined_plot=True)
+
     def set_separate():
         root.destroy()
         main(combined_plot=False)
